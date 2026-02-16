@@ -8,7 +8,6 @@ from telebot.types import *
 TOKEN = os.getenv("TOKEN")  # Railway variable
 ADMIN_ID = 7702942505  # 👈 Apna Telegram ID daalo
 
-# Main bot access channels
 REQUIRED_CHANNELS = [
     "@Shein_Reward",
     "@SheinStockss",
@@ -17,13 +16,10 @@ REQUIRED_CHANNELS = [
     "@sheinverse052"
 ]
 
-# Folder access channels
-FOLDER_CHANNELS = [
- url, "@https://t.me/addlist/hVr_c6PLZ8k5YmQ1"
-]
+FOLDER_LINK = "https://t.me/addlist/hVr_c6PLZ8k5YmQ1"
 
 REWARD_COSTS = {
-    "500": 5,
+    "500": 4,
     "1000": 10,
     "2000": 20,
     "4000": 40
@@ -53,8 +49,8 @@ data = load_data()
 
 # ================== CHANNEL CHECK ==================
 
-def check_channels(user_id, channels):
-    for ch in channels:
+def check_channels(user_id):
+    for ch in REQUIRED_CHANNELS:
         try:
             member = bot.get_chat_member(ch, user_id)
             if member.status not in ["member", "administrator", "creator"]:
@@ -63,9 +59,9 @@ def check_channels(user_id, channels):
             return False
     return True
 
-def send_force_join(msg, channels, callback_name, title):
+def send_force_join(msg):
     markup = InlineKeyboardMarkup()
-    for ch in channels:
+    for ch in REQUIRED_CHANNELS:
         username = ch.replace("@", "")
         markup.add(
             InlineKeyboardButton(
@@ -74,18 +70,21 @@ def send_force_join(msg, channels, callback_name, title):
             )
         )
     markup.add(
-        InlineKeyboardButton("✅ I Joined", callback_data=callback_name)
+        InlineKeyboardButton("✅ I Joined", callback_data="verify")
     )
-    bot.send_message(msg.chat.id, title, reply_markup=markup)
+    bot.send_message(
+        msg.chat.id,
+        "🚫 You must join all required channels to use this bot.",
+        reply_markup=markup
+    )
 
 # ================== MENU ==================
 
 def main_menu():
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("👤 Dashboard", "🎁 Rewards")
-    kb.row("🔗 My Empire Link", "🏆 Rankings")
-    kb.row("📊 Empire Stats")
-    kb.row("📂 Premium Folder")
+    kb.row("🔗 My Referral Link", "🏆 Leaderboard")
+    kb.row("📊 Stats", "📂 Premium Folder")
     return kb
 
 # ================== START ==================
@@ -95,13 +94,8 @@ def start(msg):
     user_id = str(msg.from_user.id)
     args = msg.text.split()
 
-    if not check_channels(msg.from_user.id, REQUIRED_CHANNELS):
-        send_force_join(
-            msg,
-            REQUIRED_CHANNELS,
-            "verify_main",
-            "🚫 Access Locked!\nJoin all required channels to enter the empire."
-        )
+    if not check_channels(msg.from_user.id):
+        send_force_join(msg)
         return
 
     if user_id not in data["users"]:
@@ -123,7 +117,7 @@ def start(msg):
                     data["users"][user_id]["referred_by"] = ref
                     data["stats"]["referrals"] += 1
                     try:
-                        bot.send_message(ref, "👑 New warrior joined your empire! +1 Point")
+                        bot.send_message(ref, "🎉 New referral joined! +1 Point")
                     except:
                         pass
 
@@ -131,37 +125,19 @@ def start(msg):
 
     bot.send_message(
         msg.chat.id,
-        """
-╔══════════════════════════╗
-      👑 BLACK GOLD EMPIRE 👑
-╚══════════════════════════╝
-
-💰 Earn • Refer • Dominate  
-🎁 Unlock Royal Rewards  
-🏆 Rise In Rankings  
-
-Welcome to the Empire.
-""",
+        "👑 Welcome to Shein Reward Empire 👑",
         reply_markup=main_menu()
     )
 
-# ================== VERIFY CALLBACKS ==================
+# ================== VERIFY ==================
 
-@bot.callback_query_handler(func=lambda call: call.data == "verify_main")
-def verify_main(call):
-    if check_channels(call.from_user.id, REQUIRED_CHANNELS):
-        bot.answer_callback_query(call.id, "Access Granted 👑")
-        bot.send_message(call.message.chat.id, "Empire Unlocked!", reply_markup=main_menu())
+@bot.callback_query_handler(func=lambda call: call.data == "verify")
+def verify(call):
+    if check_channels(call.from_user.id):
+        bot.answer_callback_query(call.id, "Access Granted!")
+        bot.send_message(call.message.chat.id, "Welcome 👑", reply_markup=main_menu())
     else:
         bot.answer_callback_query(call.id, "Join all channels first!", show_alert=True)
-
-@bot.callback_query_handler(func=lambda call: call.data == "verify_folder")
-def verify_folder(call):
-    if check_channels(call.from_user.id, FOLDER_CHANNELS):
-        bot.answer_callback_query(call.id, "Folder Unlocked 👑")
-        bot.send_message(call.message.chat.id, "📂 Premium Folder Access Granted!")
-    else:
-        bot.answer_callback_query(call.id, "Join all folder channels first!", show_alert=True)
 
 # ================== ROUTER ==================
 
@@ -169,13 +145,8 @@ def verify_folder(call):
 def router(msg):
     user_id = str(msg.from_user.id)
 
-    if not check_channels(msg.from_user.id, REQUIRED_CHANNELS):
-        send_force_join(
-            msg,
-            REQUIRED_CHANNELS,
-            "verify_main",
-            "🚫 Access Locked!\nJoin all required channels first."
-        )
+    if not check_channels(msg.from_user.id):
+        send_force_join(msg)
         return
 
     if user_id not in data["users"]:
@@ -184,65 +155,65 @@ def router(msg):
     user = data["users"][user_id]
     text = msg.text
 
-    # DASHBOARD
     if text == "👤 Dashboard":
         bot.send_message(
             msg.chat.id,
             f"""
-╔════ 👑 EMPIRE DASHBOARD ═══╗
+👤 PROFILE
 
-💠 Points        : {user['points']}
-👥 Warriors      : {user['referrals']}
-🎁 Rewards Taken : {user['redeemed']}
-
-Status: Rising King 👑
+💰 Points: {user['points']}
+👥 Referrals: {user['referrals']}
+🎁 Redeemed: {user['redeemed']}
 """
         )
 
-    # REFERRAL LINK
-    elif text == "🔗 My Empire Link":
+    elif text == "🔗 My Referral Link":
         bot.send_message(
             msg.chat.id,
-            f"""
-🔗 Your Royal Invite Link:
-
-https://t.me/YOUR_BOT_USERNAME?start={user_id}
-
-Invite. Earn. Conquer 👑
-"""
+            f"https://t.me/YOUR_BOT_USERNAME?start={user_id}"
         )
 
-    # STATS
-    elif text == "📊 Empire Stats":
+    elif text == "📊 Stats":
         s = data["stats"]
         bot.send_message(
             msg.chat.id,
             f"""
-📊 GLOBAL EMPIRE STATS
+📊 GLOBAL STATS
 
-👥 Total Users   : {s['users']}
-🎁 Total Redeemed: {s['redeemed']}
-🔗 Total Referrals: {s['referrals']}
-
-Empire Growing Daily 🚀
+👥 Users: {s['users']}
+🔗 Referrals: {s['referrals']}
+🎁 Redeemed: {s['redeemed']}
 """
         )
 
-    # LEADERBOARD
-    elif text == "🏆 Rankings":
+    elif text == "🏆 Leaderboard":
         sorted_users = sorted(
             data["users"].items(),
             key=lambda x: x[1]["referrals"],
             reverse=True
         )
 
-        msg_text = "🏆 ROYAL RANKINGS\n\n"
+        msg_text = "🏆 TOP REFERRERS\n\n"
         for i, (uid, u) in enumerate(sorted_users[:10], start=1):
-            msg_text += f"👑 {i}. {uid} → {u['referrals']} warriors\n"
+            msg_text += f"{i}. {uid} → {u['referrals']} referrals\n"
 
         bot.send_message(msg.chat.id, msg_text)
 
-    # REWARDS
+    elif text == "📂 Premium Folder":
+        markup = InlineKeyboardMarkup()
+        markup.add(
+            InlineKeyboardButton(
+                "📂 Open Shein Premium Folder",
+                url=FOLDER_LINK
+            )
+        )
+
+        bot.send_message(
+            msg.chat.id,
+            "📂 Click below to open the Premium Folder 👇",
+            reply_markup=markup
+        )
+
     elif text == "🎁 Rewards":
         markup = InlineKeyboardMarkup()
         for r, cost in REWARD_COSTS.items():
@@ -252,36 +223,7 @@ Empire Growing Daily 🚀
                     callback_data=f"redeem_{r}"
                 )
             )
-
-        bot.send_message(msg.chat.id, "🎁 Select Your Royal Reward:", reply_markup=markup)
-
-    # FOLDER SYSTEM
-    elif text == "📂 Premium Folder":
-
-        if not check_channels(msg.from_user.id, FOLDER_CHANNELS):
-            send_force_join(
-                msg,
-                FOLDER_CHANNELS,
-                "verify_folder",
-                "📂 Folder Locked!\nJoin required channels to unlock premium content."
-            )
-            return
-
-        bot.send_message(
-            msg.chat.id,
-            """
-📂 PREMIUM RESOURCE VAULT
-
-🔓 Access Granted
-
-• Secret Files
-• VIP Content
-• Private Links
-• Paid Materials
-
-Empire Exclusive 👑
-"""
-        )
+        bot.send_message(msg.chat.id, "🎁 Select Reward:", reply_markup=markup)
 
 # ================== REDEEM ==================
 
@@ -289,9 +231,6 @@ Empire Exclusive 👑
 def redeem(call):
     user_id = str(call.from_user.id)
     reward = call.data.split("_")[1]
-
-    if reward not in data["codes"]:
-        return
 
     cost = REWARD_COSTS[reward]
     user = data["users"][user_id]
@@ -314,17 +253,10 @@ def redeem(call):
 
     bot.send_message(
         call.message.chat.id,
-        f"""
-╔════ 🎉 REWARD UNLOCKED ═══╗
-
-🔐 Your Code:
-{code}
-
-Use it wisely 👑
-"""
+        f"🎉 Your Code: {code}"
     )
 
-    bot.answer_callback_query(call.id, "Success 👑")
+    bot.answer_callback_query(call.id, "Success!")
 
 # ================== ADMIN ==================
 
@@ -336,7 +268,7 @@ def add_code(msg):
         _, reward, code = msg.text.split(maxsplit=2)
         data["codes"][reward].append(code)
         save_data(data)
-        bot.reply_to(msg, "Code Added 👑")
+        bot.reply_to(msg, "Code Added")
     except:
         bot.reply_to(msg, "Usage: /addcode 500 CODE123")
 
@@ -350,7 +282,7 @@ def broadcast(msg):
             bot.send_message(uid, text)
         except:
             pass
-    bot.reply_to(msg, "Broadcast Sent 👑")
+    bot.reply_to(msg, "Broadcast Sent")
 
-print("👑 BLACK GOLD EMPIRE RUNNING...")
+print("Bot Running...")
 bot.infinity_polling()
