@@ -14,7 +14,7 @@ REQUIRED_CHANNELS = [
     "@SheinStockss",
     "@SheinRewardsGc",
     "@sheinlinks202",
-    "@sheinverse052
+    "@sheinverse052"
 ]
 
 # Folder access channels
