@@ -285,4 +285,4 @@ def broadcast(msg):
     bot.reply_to(msg, "Broadcast Sent")
 
 print("Bot Running...")
-bot.infinity_polling()
+bot.infinity_polling(skip_pending=True)
