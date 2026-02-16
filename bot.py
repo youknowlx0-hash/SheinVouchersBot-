@@ -5,7 +5,7 @@ from telebot.types import *
 
 # ================== CONFIG ==================
 
-TOKEN = os.getenv("8516472351:AAEjte_yPW1fkHGujFvuw9Fwglgv6d_slyI")  # Railway variable
+TOKEN = os.getenv("TOKEN")  # Railway variable
 ADMIN_ID = 7702942505  # 👈 Apna Telegram ID daalo
 
 REQUIRED_CHANNELS = [
