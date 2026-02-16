@@ -5,8 +5,8 @@ from telebot.types import *
 
 # ================== CONFIG ==================
 
-TOKEN = os.getenv("TOKEN")  # Railway variable
-ADMIN_ID = 7702942505  # 👈 Apna Telegram ID daalo
+TOKEN = os.getenv("TOKEN")  # Railway variable me TOKEN set karo
+ADMIN_ID = 7702942505  # Apna Telegram ID
 
 REQUIRED_CHANNELS = [
     "@Shein_Reward",
@@ -31,21 +31,39 @@ bot = telebot.TeleBot(TOKEN)
 
 # ================== DATABASE ==================
 
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        return {
-            "users": {},
-            "codes": {"500": [], "1000": [], "2000": [], "4000": []},
-            "stats": {"users": 0, "redeemed": 0, "referrals": 0}
-        }
-    with open(DATA_FILE, "r") as f:
-        return json.load(f)
-
 def save_data(data):
     with open(DATA_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-data = load_data()
+def load_data():
+    default_data = {
+        "users": {},
+        "codes": {"500": [], "1000": [], "2000": [], "4000": []},
+        "stats": {"users": 0, "redeemed": 0, "referrals": 0}
+    }
+
+    if not os.path.exists(DATA_FILE):
+        save_data(default_data)
+        return default_data
+
+    try:
+        with open(DATA_FILE, "r") as f:
+            data = json.load(f)
+    except:
+        save_data(default_data)
+        return default_data
+
+    # Auto repair keys
+    if "users" not in data:
+        data["users"] = {}
+
+    if "codes" not in data:
+        data["codes"] = default_data["codes"]
+
+    if "stats" not in data:
+        data["stats"] = default_data["stats"]
+
+    return data
 
 # ================== CHANNEL CHECK ==================
 
@@ -72,6 +90,7 @@ def send_force_join(msg):
     markup.add(
         InlineKeyboardButton("✅ I Joined", callback_data="verify")
     )
+
     bot.send_message(
         msg.chat.id,
         "🚫 You must join all required channels to use this bot.",
@@ -91,6 +110,8 @@ def main_menu():
 
 @bot.message_handler(commands=['start'])
 def start(msg):
+    data = load_data()
+
     user_id = str(msg.from_user.id)
     args = msg.text.split()
 
@@ -143,6 +164,7 @@ def verify(call):
 
 @bot.message_handler(func=lambda m: True)
 def router(msg):
+    data = load_data()
     user_id = str(msg.from_user.id)
 
     if not check_channels(msg.from_user.id):
@@ -158,8 +180,7 @@ def router(msg):
     if text == "👤 Dashboard":
         bot.send_message(
             msg.chat.id,
-            f"""
-👤 PROFILE
+            f"""👤 PROFILE
 
 💰 Points: {user['points']}
 👥 Referrals: {user['referrals']}
@@ -177,8 +198,7 @@ def router(msg):
         s = data["stats"]
         bot.send_message(
             msg.chat.id,
-            f"""
-📊 GLOBAL STATS
+            f"""📊 GLOBAL STATS
 
 👥 Users: {s['users']}
 🔗 Referrals: {s['referrals']}
@@ -229,11 +249,17 @@ def router(msg):
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith("redeem_"))
 def redeem(call):
+    data = load_data()
     user_id = str(call.from_user.id)
     reward = call.data.split("_")[1]
 
-    cost = REWARD_COSTS[reward]
-    user = data["users"][user_id]
+    cost = REWARD_COSTS.get(reward)
+    if not cost:
+        return
+
+    user = data["users"].get(user_id)
+    if not user:
+        return
 
     if user["points"] < cost:
         bot.answer_callback_query(call.id, "Not enough points!", show_alert=True)
@@ -251,11 +277,7 @@ def redeem(call):
 
     save_data(data)
 
-    bot.send_message(
-        call.message.chat.id,
-        f"🎉 Your Code: {code}"
-    )
-
+    bot.send_message(call.message.chat.id, f"🎉 Your Code: {code}")
     bot.answer_callback_query(call.id, "Success!")
 
 # ================== ADMIN ==================
@@ -264,11 +286,18 @@ def redeem(call):
 def add_code(msg):
     if msg.from_user.id != ADMIN_ID:
         return
+
+    data = load_data()
+
     try:
         _, reward, code = msg.text.split(maxsplit=2)
+        if reward not in data["codes"]:
+            bot.reply_to(msg, "Invalid reward type.")
+            return
+
         data["codes"][reward].append(code)
         save_data(data)
-        bot.reply_to(msg, "Code Added")
+        bot.reply_to(msg, "Code Added ✅")
     except:
         bot.reply_to(msg, "Usage: /addcode 500 CODE123")
 
@@ -276,13 +305,19 @@ def add_code(msg):
 def broadcast(msg):
     if msg.from_user.id != ADMIN_ID:
         return
+
+    data = load_data()
     text = msg.text.replace("/broadcast ", "")
+
     for uid in data["users"]:
         try:
             bot.send_message(uid, text)
         except:
             pass
-    bot.reply_to(msg, "Broadcast Sent")
+
+    bot.reply_to(msg, "Broadcast Sent ✅")
+
+# ================== RUN ==================
 
 print("Bot Running...")
-bot.infinity_polling(skip_pending=True)
+bot.infinity_polling(skip_pending=True, timeout=30, long_polling_timeout=30)
